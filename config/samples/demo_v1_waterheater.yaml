@@ -1,0 +1,6 @@
+apiVersion: demo.demo.appsflyer.com/v1
+kind: WaterHeater
+metadata:
+  name: waterheater-sample
+spec:
+  # TODO(user): Add fields here
