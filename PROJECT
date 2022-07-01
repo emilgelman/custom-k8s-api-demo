@@ -1,0 +1,6 @@
+domain: demo.appsflyer.com
+layout:
+- go.kubebuilder.io/v3
+projectName: custom-k8s-api-demo
+repo: github.com/emilgelman/custom-k8s-api-
+version: "3"
