@@ -23,6 +23,14 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
+type Mode string
+
+const (
+	Idle Mode = ""
+	Heat Mode = "heat"
+	Cool Mode = "cool"
+)
+
 // WaterHeaterSpec defines the desired state of WaterHeater
 type WaterHeaterSpec struct {
 	Temperature int64 `json:"temperature,omitempty"`
@@ -31,6 +39,7 @@ type WaterHeaterSpec struct {
 // WaterHeaterStatus defines the observed state of WaterHeater
 type WaterHeaterStatus struct {
 	Temperature int64 `json:"temperature,omitempty"`
+	Mode        Mode  `json:"mode,omitempty"`
 }
 
 //+kubebuilder:object:root=true
