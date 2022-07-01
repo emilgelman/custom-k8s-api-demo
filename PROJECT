@@ -3,4 +3,14 @@ layout:
 - go.kubebuilder.io/v3
 projectName: custom-k8s-api-demo
 repo: github.com/emilgelman/custom-k8s-api-
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: demo.appsflyer.com
+  group: demo
+  kind: WaterHeater
+  path: github.com/emilgelman/custom-k8s-api-/api/v1
+  version: v1
 version: "3"

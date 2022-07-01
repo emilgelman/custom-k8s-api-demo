@@ -1,0 +1,24 @@
+# permissions for end users to edit waterheaters.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: waterheater-editor-role
+rules:
+- apiGroups:
+  - demo.demo.appsflyer.com
+  resources:
+  - waterheaters
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - demo.demo.appsflyer.com
+  resources:
+  - waterheaters/status
+  verbs:
+  - get
