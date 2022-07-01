@@ -25,17 +25,12 @@ import (
 
 // WaterHeaterSpec defines the desired state of WaterHeater
 type WaterHeaterSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
-	// Foo is an example field of WaterHeater. Edit waterheater_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	Temperature int64 `json:"temperature,omitempty"`
 }
 
 // WaterHeaterStatus defines the observed state of WaterHeater
 type WaterHeaterStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	Temperature int64 `json:"temperature,omitempty"`
 }
 
 //+kubebuilder:object:root=true
