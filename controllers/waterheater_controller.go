@@ -73,7 +73,7 @@ func (r *WaterHeaterReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			diff *= -1
 		}
 		waterheater.Status.Mode = newMode
-		if err := r.runJob(ctx, req, waterheater); err != nil {
+		if err := r.runJob(ctx, req, waterheater, diff); err != nil {
 			return ctrl.Result{}, err
 		}
 	}
@@ -84,8 +84,8 @@ func (r *WaterHeaterReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	return ctrl.Result{}, nil
 }
 
-func (r *WaterHeaterReconciler) runJob(ctx context.Context, req ctrl.Request, waterheater demov1.WaterHeater) error {
-	job := r.ConstructJob(req.Name)
+func (r *WaterHeaterReconciler) runJob(ctx context.Context, req ctrl.Request, waterheater demov1.WaterHeater, diff int64) error {
+	job := r.ConstructJob(req.Name, diff)
 	if err := ctrl.SetControllerReference(&waterheater, job, r.Scheme); err != nil {
 		return err
 	}
@@ -127,7 +127,7 @@ func (r *WaterHeaterReconciler) jobSucceeded(ctx context.Context, owner string) 
 	return false
 
 }
-func (r *WaterHeaterReconciler) ConstructJob(owner string) *kbatch.Job {
+func (r *WaterHeaterReconciler) ConstructJob(owner string, diff int64) *kbatch.Job {
 	return &kbatch.Job{
 		ObjectMeta: v1.ObjectMeta{
 			Name:      "job",
@@ -145,7 +145,7 @@ func (r *WaterHeaterReconciler) ConstructJob(owner string) *kbatch.Job {
 					Containers: []corev1.Container{{
 						Name:  "waterheater-job",
 						Image: "busybox:latest",
-						Args:  []string{"sleep", "10"},
+						Args:  []string{"sleep", fmt.Sprintf("%v", diff)},
 					},
 					},
 				},
