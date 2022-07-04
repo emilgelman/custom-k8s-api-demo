@@ -54,7 +54,7 @@ type WaterHeaterReconciler struct {
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.10.0/pkg/reconcile
 func (r *WaterHeaterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	var waterheater demov1.WaterHeater
-	if err := r.Get(ctx, client.ObjectKey{Namespace: req.Namespace, Name: req.Name}, &waterheater); err != nil {
+	if err := r.Get(ctx, req.NamespacedName, &waterheater); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
