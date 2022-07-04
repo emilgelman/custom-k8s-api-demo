@@ -3,4 +3,4 @@ kind: WaterHeater
 metadata:
   name: waterheater-sample
 spec:
-  # TODO(user): Add fields here
+  temperature: 10
