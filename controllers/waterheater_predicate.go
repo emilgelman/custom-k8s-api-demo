@@ -19,10 +19,10 @@ func (p WaterHeaterStatusChangePredicate) Update(e event.UpdateEvent) bool {
 	if !ok {
 		return false
 	}
-	if wh.Status.Mode == v1.Idle {
-		return true
+	if wh.Spec.Temperature == wh.Status.Temperature {
+		return false
 	}
-	return false
+	return wh.Status.Mode == v1.Idle
 }
 
 func (p WaterHeaterStatusChangePredicate) Delete(e event.DeleteEvent) bool {

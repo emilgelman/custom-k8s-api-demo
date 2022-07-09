@@ -17,6 +17,7 @@ limitations under the License.
 package v1
 
 import (
+	"go.opentelemetry.io/otel/propagation"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -38,8 +39,9 @@ type WaterHeaterSpec struct {
 
 // WaterHeaterStatus defines the observed state of WaterHeater
 type WaterHeaterStatus struct {
-	Temperature int64 `json:"temperature,omitempty"`
-	Mode        Mode  `json:"mode,omitempty"`
+	Temperature  int64                  `json:"temperature,omitempty"`
+	Mode         Mode                   `json:"mode,omitempty"`
+	TraceCarrier propagation.MapCarrier `json:"trace_carrier,omitempty"`
 }
 
 //+kubebuilder:object:root=true

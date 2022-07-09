@@ -3,4 +3,4 @@ kind: WaterHeater
 metadata:
   name: waterheater-sample
 spec:
-  temperature: 10
+  temperature: 1

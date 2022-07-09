@@ -21,6 +21,12 @@ import (
 	"fmt"
 	demov1 "github.com/emilgelman/custom-k8s-api-/api/v1"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric/global"
+	"go.opentelemetry.io/otel/metric/instrument"
+	"go.opentelemetry.io/otel/metric/instrument/syncint64"
+	"go.opentelemetry.io/otel/trace"
 	kbatch "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -29,13 +35,15 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"time"
+	log "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // WaterHeaterReconciler reconciles a WaterHeater object
 type WaterHeaterReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme           *runtime.Scheme
+	Tracer           trace.Tracer
+	timesUsedCounter syncint64.Counter
 }
 
 //+kubebuilder:rbac:groups=demo.demo.appsflyer.com,resources=waterheaters,verbs=get;list;watch;create;update;patch;delete
@@ -53,17 +61,34 @@ type WaterHeaterReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.10.0/pkg/reconcile
 func (r *WaterHeaterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	logger := log.FromContext(ctx)
+	logger.Info("starting reconcile")
 	var waterheater demov1.WaterHeater
 	if err := r.Get(ctx, req.NamespacedName, &waterheater); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
+	var span trace.Span
+	if waterheater.Status.TraceCarrier == nil {
+		ctx, span = r.Tracer.Start(ctx, "reconcile", trace.WithNewRoot())
+		waterheater.Status.TraceCarrier = make(map[string]string)
+		otel.GetTextMapPropagator().Inject(ctx, waterheater.Status.TraceCarrier)
+		span.AddEvent("first reconcile")
+	} else {
+		ctx = otel.GetTextMapPropagator().Extract(ctx, &waterheater.Status.TraceCarrier)
+		ctx, span = r.Tracer.Start(ctx, "reconcile")
+		span.AddEvent("another reconcile")
+	}
+	defer span.End()
 	diff := waterheater.Spec.Temperature - waterheater.Status.Temperature
 	if diff == 0 {
+		logger.Info("temperature is synced")
 		return ctrl.Result{}, nil
 	}
 
 	if r.jobSucceeded(ctx, req.Name) {
+		logger.Info("job succeeded, setting mode to idle")
+		span.AddEvent("job-succeeded")
 		waterheater.Status.Temperature = waterheater.Spec.Temperature
 		waterheater.Status.Mode = demov1.Idle
 	} else {
@@ -72,13 +97,22 @@ func (r *WaterHeaterReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			newMode = demov1.Cool
 			diff *= -1
 		}
+		r.timesUsedCounter.Add(ctx, 1,
+			attribute.Int64("from", waterheater.Status.Temperature),
+			attribute.Int64("to", waterheater.Spec.Temperature),
+		)
 		waterheater.Status.Mode = newMode
+		logger.Info("creating new job", "mode", newMode, "diff", diff)
+		span.AddEvent("new-job")
+
 		if err := r.runJob(ctx, req, waterheater, diff); err != nil {
+			logger.Error(err, "unable to run job")
 			return ctrl.Result{}, err
 		}
 	}
 
 	if err := r.Status().Update(ctx, &waterheater); err != nil {
+		logger.Error(err, "unable to update")
 		return ctrl.Result{}, err
 	}
 	return ctrl.Result{}, nil
@@ -97,20 +131,18 @@ func (r *WaterHeaterReconciler) runJob(ctx context.Context, req ctrl.Request, wa
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *WaterHeaterReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	meter := global.MeterProvider().Meter("otel")
+	timesUsedCounter, err := meter.SyncInt64().Counter("heater.used.counter",
+		instrument.WithDescription("number of times the waterheater was used"))
+	if err != nil {
+		return err
+	}
+	r.timesUsedCounter = timesUsedCounter
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&demov1.WaterHeater{}, builder.WithPredicates(WaterHeaterStatusChangePredicate{})).
 		Owns(&kbatch.Job{}, builder.WithPredicates(JobStatusChangePredicate{})).
 		Complete(r)
-}
-
-func (r *WaterHeaterReconciler) work(waterheater *demov1.WaterHeater, diff int64) {
-	newStatus := demov1.Heat
-	if diff < 0 {
-		newStatus = demov1.Cool
-		diff *= -1
-	}
-	waterheater.Status.Mode = newStatus
-	time.Sleep(time.Second * time.Duration(diff)) // simulate work being done
 }
 
 func (r *WaterHeaterReconciler) jobSucceeded(ctx context.Context, owner string) bool {

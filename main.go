@@ -17,9 +17,11 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
+	"github.com/emilgelman/custom-k8s-api-/otel"
+	otel2 "go.opentelemetry.io/otel"
 	"os"
-
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
@@ -81,6 +83,7 @@ func main() {
 	if err = (&controllers.WaterHeaterReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
+		Tracer: otel2.Tracer("demo"),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "WaterHeater")
 		os.Exit(1)
@@ -95,6 +98,10 @@ func main() {
 		setupLog.Error(err, "unable to set up ready check")
 		os.Exit(1)
 	}
+
+	ctx := context.Background()
+	otelSDK := otel.New(ctx)
+	defer otelSDK.Shutdown(ctx)
 
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
